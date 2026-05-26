@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { HiCheckCircle, HiClock, HiExclamationCircle, HiUpload } from 'react-icons/hi'
 import { collection, addDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '../firebase/config'
+import { db } from '../firebase/config'
 import PageTransition from '../components/PageTransition'
 import { SkeletonBlock, SkeletonLine } from '../components/Skeleton'
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection'
+import { checkRateLimit, sanitizeFormData, createBotDetector } from '../utils/security'
 
 export default function CampaignPage() {
   const { id } = useParams()
@@ -16,12 +16,13 @@ export default function CampaignPage() {
   const campaign = campaigns.find(c => c.id === id)
 
   const [form, setForm] = useState({})
-  const [files, setFiles] = useState({})
   const [errors, setErrors] = useState({})
+  const [honeypot, setHoneypot] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [duplicate, setDuplicate] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
+  const botDetector = useRef(createBotDetector()).current
 
   const now = new Date()
 
@@ -45,13 +46,15 @@ export default function CampaignPage() {
   const validateField = (field, value) => {
     if (field.required && (!value || (typeof value === 'string' && !value.trim()))) return `${field.label || field.name} is required`
     if (field.type === 'email' && value) {
-      const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const emailRe = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
       if (!emailRe.test(value)) return 'Invalid email format'
     }
     if (field.type === 'phone' && value) {
       const phoneRe = /^[+]?[\d\s()-]{7,15}$/
       if (!phoneRe.test(value)) return 'Invalid phone number'
     }
+    // Enforce max lengths
+    if (typeof value === 'string' && value.length > 2000) return 'Input too long (max 2000 characters)'
     return ''
   }
 
@@ -61,22 +64,25 @@ export default function CampaignPage() {
     setErrors(prev => ({ ...prev, [field.name]: error }))
   }
 
-  const handleFileChange = (field, file) => {
-    if (file && file.size > 5 * 1024 * 1024) {
-      setErrors(prev => ({ ...prev, [field.name]: 'File must be under 5MB' }))
-      return
-    }
-    setFiles(prev => ({ ...prev, [field.name]: file }))
-    setErrors(prev => ({ ...prev, [field.name]: '' }))
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Bot check
+    if (botDetector.isBot(honeypot)) { setSubmitted(true); return }
+
+    // Rate limit
+    const rl = checkRateLimit('campaign_form')
+    if (!rl.allowed) {
+      setErrors(prev => ({ ...prev, _form: rl.message }))
+      return
+    }
+
     // Validate all
     const newErrors = {}
     let hasError = false
     fields.forEach(f => {
-      const val = f.type === 'file' ? files[f.name] : form[f.name]
+      if (f.type === 'file') return // Skip file fields (no Storage on Spark plan)
+      const val = form[f.name]
       const err = validateField(f, val)
       if (err) { newErrors[f.name] = err; hasError = true }
     })
@@ -90,7 +96,7 @@ export default function CampaignPage() {
       const emailField = fields.find(f => f.type === 'email')
       if (emailField && form[emailField.name]) {
         const dupeSnap = await getDocs(
-          query(collection(db, 'form_submissions'), where('campaign_id', '==', id), where(`responses.${emailField.name}`, '==', form[emailField.name]))
+          query(collection(db, 'form_submissions'), where('campaign_id', '==', id), where(`responses.${emailField.name}`, '==', form[emailField.name].trim().toLowerCase()))
         )
         if (!dupeSnap.empty) {
           setDuplicate(true)
@@ -99,15 +105,8 @@ export default function CampaignPage() {
         }
       }
 
-      // Upload files
-      const responses = { ...form }
-      for (const [name, file] of Object.entries(files)) {
-        if (file) {
-          const storageRef = ref(storage, `campaign_files/${id}/${Date.now()}-${file.name}`)
-          await uploadBytes(storageRef, file)
-          responses[name] = await getDownloadURL(storageRef)
-        }
-      }
+      // Sanitize responses
+      const responses = sanitizeFormData({ ...form })
 
       await addDoc(collection(db, 'form_submissions'), {
         campaign_id: id,
@@ -131,6 +130,9 @@ export default function CampaignPage() {
   const renderField = (field, i) => {
     const key = field.name || `field_${i}`
 
+    // Skip file fields on Spark plan
+    if (field.type === 'file') return null
+
     switch (field.type) {
       case 'text':
       case 'email':
@@ -142,6 +144,7 @@ export default function CampaignPage() {
               placeholder={`${field.label || field.name}${field.required ? ' *' : ''}`}
               value={form[field.name] || ''}
               onChange={(e) => handleChange(field, e.target.value)}
+              maxLength={field.type === 'email' ? 254 : 200}
               className={inputClass}
               style={inputStyle}
             />
@@ -157,6 +160,7 @@ export default function CampaignPage() {
               rows={4}
               value={form[field.name] || ''}
               onChange={(e) => handleChange(field, e.target.value)}
+              maxLength={2000}
               className={`${inputClass} resize-none`}
               style={inputStyle}
             />
@@ -208,18 +212,6 @@ export default function CampaignPage() {
           </div>
         )
 
-      case 'file':
-        return (
-          <div key={key}>
-            <label className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm text-gray-500 cursor-pointer" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <HiUpload className="w-4 h-4" />
-              {files[field.name] ? files[field.name].name : `${field.label || 'Upload File'}${field.required ? ' *' : ''} (max 5MB)`}
-              <input type="file" onChange={(e) => handleFileChange(field, e.target.files?.[0])} className="hidden" />
-            </label>
-            {errors[field.name] && <p className="text-xs text-red-400 mt-1">{errors[field.name]}</p>}
-          </div>
-        )
-
       default:
         return (
           <div key={key}>
@@ -228,6 +220,7 @@ export default function CampaignPage() {
               placeholder={`${field.label || field.name}${field.required ? ' *' : ''}`}
               value={form[field.name] || ''}
               onChange={(e) => handleChange(field, e.target.value)}
+              maxLength={200}
               className={inputClass}
               style={inputStyle}
             />
@@ -327,7 +320,7 @@ export default function CampaignPage() {
             {submitted ? (
               <motion.div className="text-center py-8" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
                 <HiCheckCircle className="w-14 h-14 text-emerald-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-white mb-2">Submitted Successfully! 🎉</h3>
+                <h3 className="text-xl font-bold text-white mb-2">Submitted Successfully!</h3>
                 <p className="text-sm text-gray-500">Thank you for your submission. We'll be in touch soon.</p>
               </motion.div>
             ) : duplicate ? (
@@ -342,6 +335,10 @@ export default function CampaignPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Honeypot */}
+                <div className="absolute -left-[9999px]" aria-hidden="true" tabIndex={-1}>
+                  <input type="text" name="website_url" value={honeypot} onChange={e => setHoneypot(e.target.value)} tabIndex={-1} autoComplete="off" />
+                </div>
                 {fields.map((field, i) => renderField(field, i))}
                 {errors._form && <p className="text-xs text-red-400">{errors._form}</p>}
                 <button

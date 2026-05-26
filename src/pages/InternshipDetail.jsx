@@ -1,14 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { HiLocationMarker, HiClock, HiCheckCircle, HiUpload } from 'react-icons/hi'
+import { HiLocationMarker, HiClock, HiCheckCircle } from 'react-icons/hi'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '../firebase/config'
+import { db } from '../firebase/config'
 import PageTransition from '../components/PageTransition'
 import { SkeletonLine, SkeletonBlock } from '../components/Skeleton'
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection'
+import { checkRateLimit, sanitizeFormData, isValidEmail, isValidPhone, createBotDetector, enforceLimit } from '../utils/security'
 
 export default function InternshipDetail() {
   const { id } = useParams()
@@ -16,24 +16,47 @@ export default function InternshipDetail() {
   const intern = internships.find(i => i.id === id)
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', college: '', branch: '', year: '', skills: '', coverLetter: '' })
-  const [resumeFile, setResumeFile] = useState(null)
+  const [honeypot, setHoneypot] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const botDetector = useRef(createBotDetector()).current
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.name || !form.email || !form.college) return setError('Name, email, and college are required')
+
+    // Bot check
+    if (botDetector.isBot(honeypot)) { setSubmitted(true); return }
+
+    // Validation
+    if (!form.name.trim() || !form.email.trim() || !form.college.trim()) return setError('Name, email, and college are required')
+    if (!isValidEmail(form.email)) return setError('Please enter a valid email address')
+    if (form.phone && !isValidPhone(form.phone)) return setError('Invalid phone number')
+
+    // Rate limit
+    const rl = checkRateLimit('intern_application')
+    if (!rl.allowed) return setError(rl.message)
+
     setSubmitting(true); setError('')
     try {
-      let resumeUrl = ''
-      if (resumeFile) {
-        if (resumeFile.size > 10 * 1024 * 1024) { setError('Resume must be under 10MB'); setSubmitting(false); return }
-        const storageRef = ref(storage, `resumes/${Date.now()}-${resumeFile.name}`)
-        await uploadBytes(storageRef, resumeFile)
-        resumeUrl = await getDownloadURL(storageRef)
-      }
-      await addDoc(collection(db, 'internship_applications'), { ...form, position: intern.title, resumeUrl, status: 'pending', read: false, createdAt: serverTimestamp() })
+      const sanitized = sanitizeFormData({
+        name: enforceLimit(form.name, 'name'),
+        email: enforceLimit(form.email.trim().toLowerCase(), 'email'),
+        phone: enforceLimit(form.phone, 'phone'),
+        college: enforceLimit(form.college, 'college'),
+        branch: enforceLimit(form.branch, 'branch'),
+        year: enforceLimit(form.year, 'year'),
+        skills: enforceLimit(form.skills, 'skills'),
+        coverLetter: enforceLimit(form.coverLetter, 'coverLetter'),
+      })
+      await addDoc(collection(db, 'internship_applications'), {
+        ...sanitized,
+        position: intern.title,
+        resumeUrl: '',
+        status: 'pending',
+        read: false,
+        createdAt: serverTimestamp(),
+      })
       setSubmitted(true)
     } catch { setError('Failed to submit. Please try again.') }
     setSubmitting(false)
@@ -103,11 +126,15 @@ export default function InternshipDetail() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-3">
                 <h3 className="text-lg font-bold text-white mb-2">Apply Now</h3>
-                <input type="text" placeholder="Full Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className={inputClass} style={inputStyle} />
-                <input type="email" placeholder="Email *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required className={inputClass} style={inputStyle} />
-                <input type="tel" placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={inputClass} style={inputStyle} />
-                <input type="text" placeholder="College / University *" value={form.college} onChange={e => setForm({ ...form, college: e.target.value })} required className={inputClass} style={inputStyle} />
-                <input type="text" placeholder="Branch / Department" value={form.branch} onChange={e => setForm({ ...form, branch: e.target.value })} className={inputClass} style={inputStyle} />
+                {/* Honeypot */}
+                <div className="absolute -left-[9999px]" aria-hidden="true" tabIndex={-1}>
+                  <input type="text" name="website_url" value={honeypot} onChange={e => setHoneypot(e.target.value)} tabIndex={-1} autoComplete="off" />
+                </div>
+                <input type="text" placeholder="Full Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required maxLength={100} className={inputClass} style={inputStyle} />
+                <input type="email" placeholder="Email *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required maxLength={254} className={inputClass} style={inputStyle} />
+                <input type="tel" placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} maxLength={20} className={inputClass} style={inputStyle} />
+                <input type="text" placeholder="College / University *" value={form.college} onChange={e => setForm({ ...form, college: e.target.value })} required maxLength={200} className={inputClass} style={inputStyle} />
+                <input type="text" placeholder="Branch / Department" value={form.branch} onChange={e => setForm({ ...form, branch: e.target.value })} maxLength={100} className={inputClass} style={inputStyle} />
                 <select value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} className={inputClass} style={inputStyle}>
                   <option value="">Year of Study</option>
                   <option value="1st Year">1st Year</option>
@@ -116,14 +143,8 @@ export default function InternshipDetail() {
                   <option value="4th Year">4th Year</option>
                   <option value="Graduated">Graduated</option>
                 </select>
-                <input type="text" placeholder="Skills (e.g. React, Python, Figma)" value={form.skills} onChange={e => setForm({ ...form, skills: e.target.value })} className={inputClass} style={inputStyle} />
-                <div className="relative">
-                  <label className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm text-gray-500 cursor-pointer" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <HiUpload className="w-4 h-4" />{resumeFile ? resumeFile.name : 'Upload Resume (PDF, max 10MB)'}
-                    <input type="file" accept=".pdf,.doc,.docx" onChange={e => setResumeFile(e.target.files?.[0] || null)} className="hidden" />
-                  </label>
-                </div>
-                <textarea placeholder="Why do you want this internship? (optional)" rows={3} value={form.coverLetter} onChange={e => setForm({ ...form, coverLetter: e.target.value })} className={`${inputClass} resize-none`} style={inputStyle} />
+                <input type="text" placeholder="Skills (e.g. React, Python, Figma)" value={form.skills} onChange={e => setForm({ ...form, skills: e.target.value })} maxLength={500} className={inputClass} style={inputStyle} />
+                <textarea placeholder="Why do you want this internship? (optional)" rows={3} value={form.coverLetter} onChange={e => setForm({ ...form, coverLetter: e.target.value })} maxLength={5000} className={`${inputClass} resize-none`} style={inputStyle} />
                 {error && <p className="text-xs text-red-400">{error}</p>}
                 <button type="submit" disabled={submitting} className="w-full py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-50 transition-all hover:-translate-y-0.5"
                   style={{ background: 'linear-gradient(135deg, #3b82f6, #7c3aed)' }}>{submitting ? 'Submitting...' : 'Submit Application'}</button>

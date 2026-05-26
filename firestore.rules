@@ -10,8 +10,12 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.active == true;
     }
 
+    // Helper: limit document size to prevent abuse (check key fields exist & are strings within limits)
+    function isValidString(field, maxLen) {
+      return field is string && field.size() <= maxLen;
+    }
+
     // Admin whitelist — authenticated users can read their own doc (for login check)
-    // Only existing admins can read all or write
     match /admins/{email} {
       allow read: if request.auth != null && request.auth.token.email == email;
       allow read, write: if isAdmin();
@@ -24,7 +28,6 @@ service cloud.firestore {
     }
 
     // Public content collections — anyone can read, admin can write
-    // Admin needs to read ALL docs including inactive ones
     match /products/{docId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -75,16 +78,26 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // FCM tokens — anyone can create, admin can read/manage
+    // FCM tokens — validated create, admin manages
     match /fcm_tokens/{docId} {
-      allow create: if true;
+      allow create: if request.resource.data.keys().hasAll(['token', 'createdAt'])
+        && request.resource.data.token is string
+        && request.resource.data.token.size() <= 500
+        && request.resource.data.keys().size() <= 5;
       allow read, update, delete: if isAdmin();
     }
 
-    // Newsletter subscribers — anyone can create, admin can read/manage
+    // Newsletter subscribers — write-only for public (no public read to protect emails)
     match /newsletter_subscribers/{docId} {
-      allow read, create: if true;
-      allow update, delete: if isAdmin();
+      allow create: if request.resource.data.keys().hasAll(['email', 'active', 'createdAt'])
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254
+        && request.resource.data.email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$')
+        && request.resource.data.keys().size() <= 4;
+      // Allow read only for duplicate check queries filtered by email
+      allow read: if request.auth == null
+        && resource.data.email == request.resource.data.email;
+      allow read, update, delete: if isAdmin();
     }
 
     // Newsletters sent log — admin only
@@ -92,31 +105,66 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Public write collections — anyone can submit, only admin can read
-    match /form_submissions/{docId} {
-      allow read, create: if true;
-      allow update, delete: if isAdmin();
-    }
-
-    match /job_applications/{docId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
-    }
-
-    match /internship_applications/{docId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
-    }
-
+    // Contact messages — validated create, admin reads
     match /messages/{docId} {
-      allow create: if true;
+      allow create: if request.resource.data.keys().hasAll(['name', 'email', 'message', 'createdAt'])
+        && isValidString(request.resource.data.name, 100)
+        && isValidString(request.resource.data.email, 254)
+        && request.resource.data.email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$')
+        && isValidString(request.resource.data.message, 5000)
+        && (!('phone' in request.resource.data) || isValidString(request.resource.data.phone, 20))
+        && (!('subject' in request.resource.data) || isValidString(request.resource.data.subject, 100))
+        && request.resource.data.keys().size() <= 8;
       allow read, update, delete: if isAdmin();
     }
 
-    // Legacy: inquiries collection from Phase 1 contact form
-    match /inquiries/{docId} {
-      allow create: if true;
+    // Job applications — validated create, admin manages
+    match /job_applications/{docId} {
+      allow create: if request.resource.data.keys().hasAll(['name', 'email', 'position', 'status', 'createdAt'])
+        && isValidString(request.resource.data.name, 100)
+        && isValidString(request.resource.data.email, 254)
+        && request.resource.data.email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$')
+        && isValidString(request.resource.data.position, 200)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().size() <= 12;
       allow read, update, delete: if isAdmin();
+    }
+
+    // Internship applications — validated create, admin manages
+    match /internship_applications/{docId} {
+      allow create: if request.resource.data.keys().hasAll(['name', 'email', 'position', 'status', 'createdAt'])
+        && isValidString(request.resource.data.name, 100)
+        && isValidString(request.resource.data.email, 254)
+        && request.resource.data.email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$')
+        && isValidString(request.resource.data.position, 200)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().size() <= 15;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Campaign form submissions — validated create, admin manages (NO public read)
+    match /form_submissions/{docId} {
+      allow create: if request.resource.data.keys().hasAll(['campaign_id', 'campaign_name', 'responses', 'createdAt'])
+        && isValidString(request.resource.data.campaign_id, 100)
+        && isValidString(request.resource.data.campaign_name, 200)
+        && request.resource.data.responses is map
+        && request.resource.data.keys().size() <= 6;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Legacy: inquiries collection
+    match /inquiries/{docId} {
+      allow create: if request.resource.data.keys().hasAll(['name', 'email', 'message'])
+        && isValidString(request.resource.data.name, 100)
+        && isValidString(request.resource.data.email, 254)
+        && isValidString(request.resource.data.message, 5000)
+        && request.resource.data.keys().size() <= 8;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

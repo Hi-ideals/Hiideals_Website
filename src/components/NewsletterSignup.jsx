@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { HiMail, HiCheckCircle } from 'react-icons/hi'
 import { collection, getDocs, addDoc, query, where, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { checkRateLimit, isValidEmail, sanitizeInput } from '../utils/security'
 
 export default function NewsletterSignup() {
   const [email, setEmail] = useState('')
@@ -13,31 +14,40 @@ export default function NewsletterSignup() {
     e.preventDefault()
     if (!email.trim()) return
 
-    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRe.test(email)) {
+    if (!isValidEmail(email)) {
       setStatus('error')
       setMessage('Please enter a valid email address')
       return
     }
 
+    // Rate limit
+    const rl = checkRateLimit('newsletter')
+    if (!rl.allowed) {
+      setStatus('error')
+      setMessage(rl.message)
+      return
+    }
+
     setStatus('submitting')
     try {
+      const cleanEmail = sanitizeInput(email.trim().toLowerCase())
+
       // Check if already subscribed
-      const snap = await getDocs(query(collection(db, 'newsletter_subscribers'), where('email', '==', email.trim().toLowerCase())))
+      const snap = await getDocs(query(collection(db, 'newsletter_subscribers'), where('email', '==', cleanEmail)))
       if (!snap.empty) {
         setStatus('exists')
-        setMessage('Already subscribed! 😊')
+        setMessage('Already subscribed!')
         return
       }
 
       await addDoc(collection(db, 'newsletter_subscribers'), {
-        email: email.trim().toLowerCase(),
+        email: cleanEmail,
         active: true,
         createdAt: serverTimestamp(),
       })
 
       setStatus('success')
-      setMessage('Subscribed successfully! 🎉')
+      setMessage('Subscribed successfully!')
       setEmail('')
     } catch {
       setStatus('error')
@@ -78,6 +88,7 @@ export default function NewsletterSignup() {
                 placeholder="Your email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setStatus(null) }}
+                maxLength={254}
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-electric-500/30"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
               />

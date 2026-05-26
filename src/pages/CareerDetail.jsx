@@ -1,14 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { HiLocationMarker, HiBriefcase, HiCheckCircle, HiUpload } from 'react-icons/hi'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '../firebase/config'
+import { db } from '../firebase/config'
 import PageTransition from '../components/PageTransition'
 import { SkeletonLine, SkeletonBlock } from '../components/Skeleton'
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection'
+import { checkRateLimit, sanitizeFormData, isValidEmail, isValidPhone, createBotDetector, enforceLimit } from '../utils/security'
 
 export default function CareerDetail() {
   const { id } = useParams()
@@ -16,24 +16,44 @@ export default function CareerDetail() {
   const job = jobs.find(j => j.id === id)
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', experience: '', coverLetter: '' })
-  const [resumeFile, setResumeFile] = useState(null)
+  const [honeypot, setHoneypot] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const botDetector = useRef(createBotDetector()).current
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.name || !form.email) return setError('Name and email are required')
+
+    // Bot check
+    if (botDetector.isBot(honeypot)) { setSubmitted(true); return }
+
+    // Validation
+    if (!form.name.trim() || !form.email.trim()) return setError('Name and email are required')
+    if (!isValidEmail(form.email)) return setError('Please enter a valid email address')
+    if (form.phone && !isValidPhone(form.phone)) return setError('Invalid phone number')
+
+    // Rate limit
+    const rl = checkRateLimit('job_application')
+    if (!rl.allowed) return setError(rl.message)
+
     setSubmitting(true); setError('')
     try {
-      let resumeUrl = ''
-      if (resumeFile) {
-        if (resumeFile.size > 10 * 1024 * 1024) { setError('Resume must be under 10MB'); setSubmitting(false); return }
-        const storageRef = ref(storage, `resumes/${Date.now()}-${resumeFile.name}`)
-        await uploadBytes(storageRef, resumeFile)
-        resumeUrl = await getDownloadURL(storageRef)
-      }
-      await addDoc(collection(db, 'job_applications'), { ...form, position: job.title, resumeUrl, status: 'pending', read: false, createdAt: serverTimestamp() })
+      const sanitized = sanitizeFormData({
+        name: enforceLimit(form.name, 'name'),
+        email: enforceLimit(form.email.trim().toLowerCase(), 'email'),
+        phone: enforceLimit(form.phone, 'phone'),
+        experience: enforceLimit(form.experience, 'experience'),
+        coverLetter: enforceLimit(form.coverLetter, 'coverLetter'),
+      })
+      await addDoc(collection(db, 'job_applications'), {
+        ...sanitized,
+        position: job.title,
+        resumeUrl: '',
+        status: 'pending',
+        read: false,
+        createdAt: serverTimestamp(),
+      })
       setSubmitted(true)
     } catch { setError('Failed to submit. Please try again.') }
     setSubmitting(false)
@@ -96,17 +116,16 @@ export default function CareerDetail() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-3">
                 <h3 className="text-lg font-bold text-white mb-2">Apply Now</h3>
-                <input type="text" placeholder="Full Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className={inputClass} style={inputStyle} />
-                <input type="email" placeholder="Email *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required className={inputClass} style={inputStyle} />
-                <input type="tel" placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={inputClass} style={inputStyle} />
-                <input type="text" placeholder="Years of Experience" value={form.experience} onChange={e => setForm({ ...form, experience: e.target.value })} className={inputClass} style={inputStyle} />
-                <div className="relative">
-                  <label className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm text-gray-500 cursor-pointer" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <HiUpload className="w-4 h-4" />{resumeFile ? resumeFile.name : 'Upload Resume (PDF, max 10MB)'}
-                    <input type="file" accept=".pdf,.doc,.docx" onChange={e => setResumeFile(e.target.files?.[0] || null)} className="hidden" />
-                  </label>
+                {/* Honeypot */}
+                <div className="absolute -left-[9999px]" aria-hidden="true" tabIndex={-1}>
+                  <input type="text" name="website_url" value={honeypot} onChange={e => setHoneypot(e.target.value)} tabIndex={-1} autoComplete="off" />
                 </div>
-                <textarea placeholder="Cover Letter (optional)" rows={3} value={form.coverLetter} onChange={e => setForm({ ...form, coverLetter: e.target.value })} className={`${inputClass} resize-none`} style={inputStyle} />
+                <input type="text" placeholder="Full Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required maxLength={100} className={inputClass} style={inputStyle} />
+                <input type="email" placeholder="Email *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required maxLength={254} className={inputClass} style={inputStyle} />
+                <input type="tel" placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} maxLength={20} className={inputClass} style={inputStyle} />
+                <input type="text" placeholder="Years of Experience" value={form.experience} onChange={e => setForm({ ...form, experience: e.target.value })} maxLength={100} className={inputClass} style={inputStyle} />
+                <textarea placeholder="Cover Letter (optional)" rows={3} value={form.coverLetter} onChange={e => setForm({ ...form, coverLetter: e.target.value })} maxLength={5000} className={`${inputClass} resize-none`} style={inputStyle} />
+                <p className="text-xs text-gray-600">Email your resume to {job.applyUrl || 'careers@hiideals.com'} after applying.</p>
                 {error && <p className="text-xs text-red-400">{error}</p>}
                 <button type="submit" disabled={submitting} className="w-full py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-50 transition-all hover:-translate-y-0.5"
                   style={{ background: 'linear-gradient(135deg, #3b82f6, #7c3aed)' }}>{submitting ? 'Submitting...' : 'Submit Application'}</button>

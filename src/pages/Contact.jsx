@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { HiMail, HiPhone, HiLocationMarker, HiClock, HiCheckCircle } from 'react-icons/hi'
@@ -7,22 +7,48 @@ import { db } from '../firebase/config'
 import PageTransition from '../components/PageTransition'
 import PageBanner from '../components/PageBanner'
 import { useFirestoreDoc } from '../hooks/useFirestoreDoc'
+import { checkRateLimit, sanitizeFormData, isValidEmail, isValidPhone, createBotDetector, enforceLimit } from '../utils/security'
 
 const subjects = ['General Inquiry', 'Project Discussion', 'Partnership', 'Career Related', 'Support', 'Other']
 
 export default function Contact() {
   const { data: settings } = useFirestoreDoc('site_settings', 'general')
   const [form, setForm] = useState({ name: '', email: '', phone: '', subject: '', message: '' })
+  const [honeypot, setHoneypot] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const botDetector = useRef(createBotDetector()).current
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.name || !form.email || !form.message) return setError('Name, email, and message are required')
+
+    // Bot detection
+    if (botDetector.isBot(honeypot)) {
+      setSubmitted(true) // Silently pretend success
+      return
+    }
+
+    // Validation
+    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) return setError('Name, email, and message are required')
+    if (!isValidEmail(form.email)) return setError('Please enter a valid email address')
+    if (form.phone && !isValidPhone(form.phone)) return setError('Please enter a valid phone number')
+    if (form.message.trim().length < 10) return setError('Message must be at least 10 characters')
+
+    // Rate limit
+    const rl = checkRateLimit('contact_form')
+    if (!rl.allowed) return setError(rl.message)
+
     setSubmitting(true); setError('')
     try {
-      await addDoc(collection(db, 'messages'), { ...form, read: false, createdAt: serverTimestamp() })
+      const sanitized = sanitizeFormData({
+        name: enforceLimit(form.name, 'name'),
+        email: enforceLimit(form.email.trim().toLowerCase(), 'email'),
+        phone: enforceLimit(form.phone, 'phone'),
+        subject: enforceLimit(form.subject, 'subject'),
+        message: enforceLimit(form.message, 'message'),
+      })
+      await addDoc(collection(db, 'messages'), { ...sanitized, read: false, createdAt: serverTimestamp() })
       setSubmitted(true)
       setForm({ name: '', email: '', phone: '', subject: '', message: '' })
     } catch { setError('Failed to send. Please try again.') }
@@ -100,16 +126,20 @@ export default function Contact() {
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <h3 className="text-xl font-bold text-white mb-4">Send Us a Message</h3>
+                  {/* Honeypot — hidden from humans */}
+                  <div className="absolute -left-[9999px]" aria-hidden="true" tabIndex={-1}>
+                    <input type="text" name="website_url" value={honeypot} onChange={e => setHoneypot(e.target.value)} tabIndex={-1} autoComplete="off" />
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input type="text" placeholder="Full Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className={inputClass} style={inputStyle} />
-                    <input type="email" placeholder="Email Address *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required className={inputClass} style={inputStyle} />
-                    <input type="tel" placeholder="Phone (optional)" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={inputClass} style={inputStyle} />
+                    <input type="text" placeholder="Full Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required maxLength={100} className={inputClass} style={inputStyle} />
+                    <input type="email" placeholder="Email Address *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required maxLength={254} className={inputClass} style={inputStyle} />
+                    <input type="tel" placeholder="Phone (optional)" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} maxLength={20} className={inputClass} style={inputStyle} />
                     <select value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className={inputClass} style={inputStyle}>
                       <option value="">Select Subject</option>
                       {subjects.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
-                  <textarea placeholder="Your Message *" rows={5} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} required className={`${inputClass} resize-none`} style={inputStyle} />
+                  <textarea placeholder="Your Message *" rows={5} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} required maxLength={5000} className={`${inputClass} resize-none`} style={inputStyle} />
                   {error && <p className="text-xs text-red-400">{error}</p>}
                   <button type="submit" disabled={submitting} className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-white font-semibold text-sm disabled:opacity-50 transition-all hover:-translate-y-0.5"
                     style={{ background: 'linear-gradient(135deg, #3b82f6, #7c3aed)', boxShadow: '0 8px 30px rgba(59,130,246,0.2)' }}>

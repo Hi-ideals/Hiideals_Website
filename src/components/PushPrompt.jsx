@@ -5,6 +5,7 @@ import { getToken, onMessage } from 'firebase/messaging'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db, getMessagingInstance } from '../firebase/config'
 import { useToast } from '../context/ToastContext'
+import { checkRateLimit } from '../utils/security'
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || ''
 
@@ -44,6 +45,10 @@ export default function PushPrompt() {
   const handleAllow = async () => {
     setShow(false)
     localStorage.setItem('hiideals_push_decision', 'allowed')
+
+    const rl = checkRateLimit('fcm_token')
+    if (!rl.allowed) return
+
     try {
       const permission = await Notification.requestPermission()
       if (permission === 'granted') {
