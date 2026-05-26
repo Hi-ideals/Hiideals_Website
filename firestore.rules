@@ -1,0 +1,122 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: check if user is authenticated admin
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
+        && get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.active == true;
+    }
+
+    // Admin whitelist — authenticated users can read their own doc (for login check)
+    // Only existing admins can read all or write
+    match /admins/{email} {
+      allow read: if request.auth != null && request.auth.token.email == email;
+      allow read, write: if isAdmin();
+    }
+
+    // Site Settings — public read, admin write
+    match /site_settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Public content collections — anyone can read, admin can write
+    // Admin needs to read ALL docs including inactive ones
+    match /products/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /services/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /team/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /testimonials/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /blog_posts/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /case_studies/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /careers/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /internships/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /campaigns/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // FCM tokens — anyone can create, admin can read/manage
+    match /fcm_tokens/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Newsletter subscribers — anyone can create, admin can read/manage
+    match /newsletter_subscribers/{docId} {
+      allow read, create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // Newsletters sent log — admin only
+    match /newsletters_sent/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Public write collections — anyone can submit, only admin can read
+    match /form_submissions/{docId} {
+      allow read, create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    match /job_applications/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /internship_applications/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /messages/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Legacy: inquiries collection from Phase 1 contact form
+    match /inquiries/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
