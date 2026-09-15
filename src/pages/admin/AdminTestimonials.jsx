@@ -136,7 +136,7 @@ export default function AdminTestimonials() {
               ))}
             </div>
           </div>
-          <ImageUpload label="Photo" value={form.photo} onChange={(photo) => setForm({ ...form, photo })} />
+          <ImageUpload label="Photo" hint="Recommended: 200×200px, square crop" value={form.photo} onChange={(photo) => setForm({ ...form, photo })} />
           <div className="grid grid-cols-2 gap-4">
             <FormInput label="Order" type="number" value={form.order} onChange={(e) => setForm({ ...form, order: Number(e.target.value) })} />
             <div className="flex items-end pb-1"><FormToggle label="Active" checked={form.active} onChange={(active) => setForm({ ...form, active })} /></div>

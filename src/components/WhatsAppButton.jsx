@@ -63,9 +63,9 @@ export default function WhatsAppButton({ phone = '919999999999' }) {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
                 className="absolute right-full mr-3 top-1/2 -translate-y-1/2 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-                style={{ background: 'rgba(13,17,39,0.95)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)' }}
+                style={{ background: 'white', border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
               >
-                Chat with us on WhatsApp
+                <span className="text-gray-700">Chat with us on WhatsApp</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -92,7 +92,7 @@ export default function WhatsAppButton({ phone = '919999999999' }) {
             </svg>
 
             {/* Online dot */}
-            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2" style={{ borderColor: '#050816' }}>
+            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-white">
               <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-50" />
             </span>
           </motion.a>

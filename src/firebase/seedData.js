@@ -139,24 +139,6 @@ const seedDocuments = {
     },
   },
 
-  // Case Studies
-  case_studies: {
-    'sample-case-study': {
-      title: 'E-Commerce Platform Overhaul',
-      slug: 'ecommerce-platform-overhaul',
-      client: 'RetailMax',
-      description: 'Complete redesign and rebuild of an e-commerce platform serving 10,000+ daily users.',
-      challenge: 'Legacy platform with poor performance and user experience.',
-      solution: 'Modern React SPA with Node.js API, PostgreSQL, and Redis caching.',
-      results: '3x faster load times, 40% increase in conversions.',
-      tech: ['React', 'Node.js', 'PostgreSQL', 'Redis'],
-      image: '',
-      active: true,
-      order: 1,
-      createdAt: new Date(),
-    },
-  },
-
   // Careers
   careers: {
     'sample-job': {

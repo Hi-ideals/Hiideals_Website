@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { HiMail, HiCheckCircle } from 'react-icons/hi'
-import { collection, getDocs, addDoc, query, where, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { checkRateLimit, isValidEmail, sanitizeInput } from '../utils/security'
 
@@ -32,15 +32,16 @@ export default function NewsletterSignup() {
     try {
       const cleanEmail = sanitizeInput(email.trim().toLowerCase())
 
-      // Check if already subscribed
-      const snap = await getDocs(query(collection(db, 'newsletter_subscribers'), where('email', '==', cleanEmail)))
-      if (!snap.empty) {
+      // Check if already subscribed (email IS the document ID — no list query needed)
+      const existingDoc = await getDoc(doc(db, 'newsletter_subscribers', cleanEmail))
+      if (existingDoc.exists()) {
         setStatus('exists')
         setMessage('Already subscribed!')
         return
       }
 
-      await addDoc(collection(db, 'newsletter_subscribers'), {
+      // Use email as doc ID — prevents duplicates at the database level
+      await setDoc(doc(db, 'newsletter_subscribers', cleanEmail), {
         email: cleanEmail,
         active: true,
         createdAt: serverTimestamp(),
@@ -57,8 +58,8 @@ export default function NewsletterSignup() {
 
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400 mb-3">Stay Updated</h3>
-      <p className="text-sm text-gray-500 mb-4">Get the latest news, updates, and opportunities delivered to your inbox.</p>
+      <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 mb-3">Stay Updated</h3>
+      <p className="text-sm text-gray-400 mb-4">Get the latest news, updates, and opportunities delivered to your inbox.</p>
 
       <AnimatePresence mode="wait">
         {status === 'success' ? (
@@ -68,10 +69,10 @@ export default function NewsletterSignup() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             className="flex items-center gap-2 p-3 rounded-xl"
-            style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}
+            className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200"
           >
-            <HiCheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-            <p className="text-sm text-emerald-400">{message}</p>
+            <HiCheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+            <p className="text-sm text-emerald-600">{message}</p>
           </motion.div>
         ) : (
           <motion.form
@@ -82,22 +83,16 @@ export default function NewsletterSignup() {
             animate={{ opacity: 1 }}
           >
             <div className="relative flex-1">
-              <HiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
-              <input
-                type="email"
-                placeholder="Your email"
-                value={email}
+              <HiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input type="email" placeholder="Your email" value={email}
                 onChange={(e) => { setEmail(e.target.value); setStatus(null) }}
                 maxLength={254}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-electric-500/30"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-              />
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors border border-gray-200 bg-white focus:border-sky-400" />
             </div>
             <button
               type="submit"
               disabled={status === 'submitting'}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-white shrink-0 transition-all hover:-translate-y-0.5 disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #3b82f6, #7c3aed)' }}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-white shrink-0 bg-sky-500 hover:bg-sky-600 transition-colors disabled:opacity-50"
             >
               {status === 'submitting' ? '...' : 'Subscribe'}
             </button>
@@ -109,7 +104,7 @@ export default function NewsletterSignup() {
         <motion.p
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`text-xs mt-2 ${status === 'exists' ? 'text-yellow-400' : 'text-red-400'}`}
+          className={`text-xs mt-2 ${status === 'exists' ? 'text-amber-600' : 'text-red-500'}`}
         >
           {message}
         </motion.p>

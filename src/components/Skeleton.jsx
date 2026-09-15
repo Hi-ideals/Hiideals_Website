@@ -1,14 +1,14 @@
 export function SkeletonLine({ className = '' }) {
-  return <div className={`h-4 rounded-lg bg-white/[0.04] animate-pulse ${className}`} />
+  return <div className={`h-4 rounded-lg bg-gray-100 animate-pulse ${className}`} />
 }
 
 export function SkeletonBlock({ className = '' }) {
-  return <div className={`rounded-2xl bg-white/[0.04] animate-pulse ${className}`} />
+  return <div className={`rounded-2xl bg-gray-100 animate-pulse ${className}`} />
 }
 
 export function SkeletonCard() {
   return (
-    <div className="rounded-2xl p-6 animate-pulse" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+    <div className="rounded-2xl p-6 animate-pulse bg-white border border-gray-100">
       <SkeletonBlock className="h-40 mb-4" />
       <SkeletonLine className="w-2/3 mb-3" />
       <SkeletonLine className="w-full mb-2" />

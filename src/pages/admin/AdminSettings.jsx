@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
+import { HiPlus, HiTrash } from 'react-icons/hi'
 import { useToast } from '../../context/ToastContext'
-import { fetchDoc, saveDoc } from '../../firebase/adminCrud'
+import { fetchDoc, saveDoc, fetchCollection, removeDoc } from '../../firebase/adminCrud'
 import PageHeader from '../../components/admin/PageHeader'
 import { FormInput, FormTextarea, FormToggle } from '../../components/admin/FormInput'
 import ImageUpload from '../../components/admin/ImageUpload'
 
 const defaultSettings = {
-  general: { companyName: '', tagline: '', email: '', phone: '', address: '', founded: '', logo: '', linkedin: '', instagram: '', twitter: '' },
-  homepage: { showServices: true, showProducts: true, showTestimonials: true, showBlog: true, showCareers: true, heroBadge: '', heroTitle1: '', heroTitle2: '', heroDescription: '' },
+  general: { companyName: '', tagline: '', email: '', phone: '', address: '', founded: '', logo: '', linkedin: '', instagram: '', twitter: '', mission: '', vision: '' },
+  homepage: { showServices: true, showProducts: true, showTestimonials: true, showBlog: true, showCareers: true, showClients: true, showCTA: true, heroBadge: '', heroTitle1: '', heroTitle2: '', heroDescription: '' },
   seo: { metaTitle: '', metaDescription: '', ogImage: '' },
 }
 
@@ -15,6 +16,7 @@ export default function AdminSettings() {
   const toast = useToast()
   const [tab, setTab] = useState('general')
   const [settings, setSettings] = useState(defaultSettings)
+  const [clientLogos, setClientLogos] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -27,6 +29,20 @@ export default function AdminSettings() {
         data[key] = doc ? { ...defaultSettings[key], ...doc } : defaultSettings[key]
       }
       setSettings(data)
+      let logos = await fetchCollection('client_logos', 'order')
+      if (logos.length === 0 && data.homepage.clientLogos?.length > 0) {
+        for (let i = 0; i < data.homepage.clientLogos.length; i++) {
+          const cl = data.homepage.clientLogos[i]
+          const id = `client-migrated-${i}`
+          await saveDoc('client_logos', { name: cl.name || '', logo: cl.logo || '', order: i }, id)
+          logos.push({ id, name: cl.name || '', logo: cl.logo || '', order: i })
+        }
+        const { clientLogos: _, ...cleanHomepage } = data.homepage
+        await saveDoc('site_settings', cleanHomepage, 'homepage')
+        data.homepage = cleanHomepage
+        toast.success(`Migrated ${logos.length} client logos to new storage`)
+      }
+      setClientLogos(logos)
     } catch { toast.error('Failed to load settings') }
     setLoading(false)
   }
@@ -37,14 +53,74 @@ export default function AdminSettings() {
     setSettings((prev) => ({ ...prev, [section]: { ...prev[section], [field]: value } }))
   }
 
+  const compressLogo = async (dataUrl) => {
+    const MAX_LOGO_WIDTH = 200
+    if (!dataUrl || !dataUrl.startsWith('data:image')) return dataUrl
+    try {
+      const img = new window.Image()
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = reject
+        img.src = dataUrl
+      })
+      if (img.width <= MAX_LOGO_WIDTH) return dataUrl
+      const canvas = document.createElement('canvas')
+      const ratio = MAX_LOGO_WIDTH / img.width
+      canvas.width = MAX_LOGO_WIDTH
+      canvas.height = Math.round(img.height * ratio)
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const isPng = dataUrl.startsWith('data:image/png')
+      return isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.7)
+    } catch { return dataUrl }
+  }
+
+  const saveClientLogo = async (logo, index) => {
+    try {
+      const compressed = await compressLogo(logo.logo)
+      const data = { name: logo.name || '', logo: compressed || '', order: index }
+      const id = logo.id || `client-${Date.now()}-${index}`
+      await saveDoc('client_logos', data, id)
+      return { ...data, id }
+    } catch (e) {
+      console.error('Failed to save logo:', e)
+      throw e
+    }
+  }
+
+  const deleteClientLogo = async (logo) => {
+    if (!logo.id) return
+    try {
+      await removeDoc('client_logos', logo.id)
+    } catch (e) {
+      console.error('Failed to delete logo:', e)
+      throw e
+    }
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
-      const data = { ...settings[tab] }
-      await saveDoc('site_settings', data, tab)
-      setSettings(prev => ({ ...prev, [tab]: data }))
+      if (tab === 'homepage') {
+        const { id, clientLogos: _, ...data } = settings[tab]
+        await saveDoc('site_settings', data, tab)
+        const savedLogos = []
+        for (let i = 0; i < clientLogos.length; i++) {
+          const saved = await saveClientLogo(clientLogos[i], i)
+          savedLogos.push(saved)
+        }
+        setClientLogos(savedLogos)
+        setSettings(prev => ({ ...prev, [tab]: { ...data, id: tab } }))
+      } else {
+        const { id, ...data } = settings[tab]
+        await saveDoc('site_settings', data, tab)
+        setSettings(prev => ({ ...prev, [tab]: { ...data, id: tab } }))
+      }
       toast.success('Settings saved')
-    } catch { toast.error('Failed to save') }
+    } catch (e) {
+      console.error('Save error:', e)
+      toast.error('Failed to save')
+    }
     setSaving(false)
   }
 
@@ -71,7 +147,7 @@ export default function AdminSettings() {
       <div className="rounded-2xl border border-white/[0.06] p-6" style={{ background: 'rgba(255,255,255,0.02)' }}>
         {tab === 'general' && (
           <div className="space-y-4 max-w-2xl">
-            <ImageUpload label="Company Logo" value={s.logo || ''} onChange={(logo) => updateField('general', 'logo', logo)} />
+            <ImageUpload label="Company Logo" hint="Recommended: 200×200px, PNG with transparent bg" value={s.logo || ''} onChange={(logo) => updateField('general', 'logo', logo)} />
             <FormInput label="Company Name" value={s.companyName || ''} onChange={(e) => updateField('general', 'companyName', e.target.value)} />
             <FormTextarea label="Tagline" value={s.tagline || ''} onChange={(e) => updateField('general', 'tagline', e.target.value)} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -80,6 +156,13 @@ export default function AdminSettings() {
             </div>
             <FormInput label="Address" value={s.address || ''} onChange={(e) => updateField('general', 'address', e.target.value)} />
             <FormInput label="Founded" value={s.founded || ''} onChange={(e) => updateField('general', 'founded', e.target.value)} />
+            <div className="pt-2">
+              <h3 className="text-sm font-semibold text-white mb-3">About Page</h3>
+              <div className="space-y-3">
+                <FormTextarea label="Mission Statement" placeholder="To empower businesses with..." value={s.mission || ''} onChange={(e) => updateField('general', 'mission', e.target.value)} />
+                <FormTextarea label="Vision Statement" placeholder="To become the most trusted..." value={s.vision || ''} onChange={(e) => updateField('general', 'vision', e.target.value)} />
+              </div>
+            </div>
             <div className="pt-2">
               <h3 className="text-sm font-semibold text-white mb-3">Social Links</h3>
               <div className="space-y-3">
@@ -96,8 +179,8 @@ export default function AdminSettings() {
             <div>
               <h3 className="text-sm font-semibold text-white mb-3">Section Visibility</h3>
               <div className="space-y-3 p-4 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                {['showServices', 'showProducts', 'showTestimonials', 'showBlog', 'showCareers'].map((key) => (
-                  <FormToggle key={key} label={key.replace('show', '')} checked={s[key] !== false} onChange={(val) => updateField('homepage', key, val)} />
+                {['showServices', 'showProducts', 'showTestimonials', 'showBlog', 'showCareers', 'showClients', 'showCTA'].map((key) => (
+                  <FormToggle key={key} label={key.replace('show', '').replace('CTA', 'CTA Banner')} checked={s[key] !== false} onChange={(val) => updateField('homepage', key, val)} />
                 ))}
               </div>
             </div>
@@ -109,6 +192,73 @@ export default function AdminSettings() {
                 <FormInput label="Title Line 2" value={s.heroTitle2 || ''} onChange={(e) => updateField('homepage', 'heroTitle2', e.target.value)} />
               </div>
               <FormTextarea label="Description" value={s.heroDescription || ''} onChange={(e) => updateField('homepage', 'heroDescription', e.target.value)} />
+            </div>
+
+            {/* Client Logos */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Client Logos</h3>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Shown in the scrolling marquee on the homepage ({clientLogos.length} clients)</p>
+                </div>
+                <button type="button" onClick={() => {
+                  setClientLogos(prev => [...prev, { name: '', logo: '', order: prev.length }])
+                }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-electric-400 bg-electric-500/10 hover:bg-electric-500/20 transition-colors">
+                  <HiPlus className="w-3.5 h-3.5" /> Add Client
+                </button>
+              </div>
+              {clientLogos.length === 0 && (
+                <p className="text-xs text-gray-600 py-4 text-center border border-dashed border-white/[0.08] rounded-xl">No client logos added yet. Click "Add Client" to start.</p>
+              )}
+              <div className="space-y-3">
+                {clientLogos.map((client, idx) => (
+                  <div key={client.id || idx} className="flex gap-3 items-start p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-24 shrink-0">
+                      <ImageUpload
+                        label=""
+                        hint="160×60px, PNG"
+                        maxWidth={200}
+                        value={client.logo || ''}
+                        onChange={(logo) => {
+                          setClientLogos(prev => {
+                            const next = [...prev]
+                            next[idx] = { ...next[idx], logo }
+                            return next
+                          })
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <FormInput
+                        label="Client Name"
+                        placeholder="e.g. Acme Corp"
+                        value={client.name || ''}
+                        onChange={(e) => {
+                          setClientLogos(prev => {
+                            const next = [...prev]
+                            next[idx] = { ...next[idx], name: e.target.value }
+                            return next
+                          })
+                        }}
+                      />
+                    </div>
+                    <button type="button" onClick={async () => {
+                      if (client.id) {
+                        try {
+                          await deleteClientLogo(client)
+                        } catch {
+                          toast.error('Failed to delete')
+                          return
+                        }
+                      }
+                      setClientLogos(prev => prev.filter((_, i) => i !== idx))
+                      toast.success('Client removed')
+                    }} className="mt-6 p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                      <HiTrash className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

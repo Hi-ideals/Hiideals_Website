@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
   HiHome, HiCube, HiBriefcase, HiUserGroup, HiStar,
-  HiDocumentText, HiCollection, HiAcademicCap, HiBell,
+  HiDocumentText, HiAcademicCap, HiBell,
   HiSpeakerphone, HiMail, HiCog, HiLogout, HiMenuAlt2, HiX,
   HiShieldCheck,
 } from 'react-icons/hi'
@@ -17,7 +17,6 @@ const navSections = [
     { name: 'Services', path: '/admin/services', icon: HiBriefcase },
     { name: 'Products', path: '/admin/products', icon: HiCube },
     { name: 'Blog Posts', path: '/admin/blog', icon: HiDocumentText },
-    { name: 'Case Studies', path: '/admin/case-studies', icon: HiCollection },
     { name: 'Team', path: '/admin/team', icon: HiUserGroup },
     { name: 'Testimonials', path: '/admin/testimonials', icon: HiStar },
   ]},

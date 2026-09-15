@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import {
   onAuthStateChanged,
   signInWithPopup,
@@ -11,12 +11,14 @@ import { auth, db } from '../firebase/config'
 const AuthContext = createContext()
 
 const googleProvider = new GoogleAuthProvider()
+const SESSION_TIMEOUT = 2 * 60 * 60 * 1000 // 2 hours inactivity timeout
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const timeoutRef = useRef(null)
 
   const checkAdmin = async (email) => {
     try {
@@ -73,12 +75,34 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
     await signOut(auth)
     setUser(null)
     setIsAdmin(false)
     setError(null)
-  }
+  }, [])
+
+  // Auto-logout after inactivity (admin sessions only)
+  const resetTimeout = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    if (user && isAdmin) {
+      timeoutRef.current = setTimeout(() => {
+        logout()
+      }, SESSION_TIMEOUT)
+    }
+  }, [user, isAdmin, logout])
+
+  useEffect(() => {
+    if (!user || !isAdmin) return
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart']
+    events.forEach(e => window.addEventListener(e, resetTimeout, { passive: true }))
+    resetTimeout() // start the timer
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetTimeout))
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
+  }, [user, isAdmin, resetTimeout])
 
   return (
     <AuthContext.Provider

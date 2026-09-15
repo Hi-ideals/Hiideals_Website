@@ -14,7 +14,7 @@ export default function Layout() {
   const [hasAnnouncement, setHasAnnouncement] = useState(false)
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ background: '#050816' }}>
+    <div className="min-h-screen overflow-x-hidden bg-white">
       <AnnouncementBar onVisibilityChange={setHasAnnouncement} />
       <Navbar hasAnnouncement={hasAnnouncement} />
       <main className={hasAnnouncement ? 'pt-28 lg:pt-32' : 'pt-20 lg:pt-24'}>

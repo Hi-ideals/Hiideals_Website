@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { HiMail, HiPhone, HiLocationMarker, HiClock, HiCheckCircle } from 'react-icons/hi'
+import { HiMail, HiPhone, HiLocationMarker, HiClock, HiCheckCircle, HiArrowRight } from 'react-icons/hi'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import PageTransition from '../components/PageTransition'
 import PageBanner from '../components/PageBanner'
 import { useFirestoreDoc } from '../hooks/useFirestoreDoc'
+import { Link001 } from '../components/ui/skiper-ui/skiper40'
 import { checkRateLimit, sanitizeFormData, isValidEmail, isValidPhone, createBotDetector, enforceLimit } from '../utils/security'
 
 const subjects = ['General Inquiry', 'Project Discussion', 'Partnership', 'Career Related', 'Support', 'Other']
@@ -23,19 +24,16 @@ export default function Contact() {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    // Bot detection
     if (botDetector.isBot(honeypot)) {
-      setSubmitted(true) // Silently pretend success
+      setSubmitted(true)
       return
     }
 
-    // Validation
     if (!form.name.trim() || !form.email.trim() || !form.message.trim()) return setError('Name, email, and message are required')
     if (!isValidEmail(form.email)) return setError('Please enter a valid email address')
     if (form.phone && !isValidPhone(form.phone)) return setError('Please enter a valid phone number')
     if (form.message.trim().length < 10) return setError('Message must be at least 10 characters')
 
-    // Rate limit
     const rl = checkRateLimit('contact_form')
     if (!rl.allowed) return setError(rl.message)
 
@@ -62,8 +60,7 @@ export default function Contact() {
     { icon: HiClock, label: 'Working Hours', value: 'Mon - Sat, 9:00 AM - 6:00 PM IST' },
   ]
 
-  const inputClass = "w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none transition-all focus:border-electric-500/30"
-  const inputStyle = { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }
+  const inputClass = "w-full px-5 py-4 rounded-xl text-sm text-gray-900 placeholder-gray-400 bg-sky-50/50 border border-sky-100 focus:outline-none focus:border-sky-400 focus:bg-white transition-all"
 
   return (
     <PageTransition>
@@ -74,76 +71,72 @@ export default function Contact() {
 
       <PageBanner title="Get in Touch" subtitle="Have a project in mind? Let's talk about how we can help your business grow." breadcrumbs={[{ label: 'Contact' }]} />
 
-      {/* Contact Info + Form */}
-      <section className="relative py-16 sm:py-24 overflow-hidden" style={{ background: 'linear-gradient(180deg, #0a0f2e, #050816)' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="relative py-20 sm:py-28 overflow-hidden bg-white">
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-sky-50 rounded-full blur-[120px] -translate-y-1/4 translate-x-1/4" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
-            {/* Left — Contact Info */}
             <div className="lg:col-span-2 space-y-5">
               <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-                <h2 className="text-2xl font-bold text-white mb-2">Contact Information</h2>
+                <span className="text-xs font-bold uppercase tracking-[0.25em] text-sky-500 mb-3 block">Reach Out</span>
+                <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight leading-[0.95] mb-2">CONTACT <span className="text-stroke-sky">INFO.</span></h2>
                 <p className="text-sm text-gray-500 mb-6">Fill out the form and our team will get back to you within 24 hours.</p>
               </motion.div>
 
               {contactInfo.map((item, i) => (
-                <motion.div key={i} className="flex items-start gap-4 p-5 rounded-2xl" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.005))', border: '1px solid rgba(255,255,255,0.05)' }}
+                <motion.div key={i} className="group flex items-start gap-4 p-5 rounded-2xl bg-sky-50/50 border border-sky-100/80 hover:bg-white hover:shadow-xl hover:shadow-sky-100/50 hover:border-sky-200 transition-all duration-500"
                   initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.1)' }}>
-                    <item.icon className="w-4 h-4 text-electric-400" />
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-sky-100 group-hover:bg-sky-500 transition-colors duration-300">
+                    <item.icon className="w-4.5 h-4.5 text-sky-500 group-hover:text-white transition-colors duration-300" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-white">{item.label}</p>
-                    {item.href ? <a href={item.href} className="text-sm text-gray-400 hover:text-electric-400 transition-colors">{item.value}</a> : <p className="text-sm text-gray-400">{item.value}</p>}
+                    <p className="text-sm font-bold text-gray-900">{item.label}</p>
+                    {item.href ? <a href={item.href} className="text-sm text-gray-500 hover:text-sky-600 transition-colors">{item.value}</a> : <p className="text-sm text-gray-500">{item.value}</p>}
                   </div>
                 </motion.div>
               ))}
 
-              {/* Social links */}
               <motion.div className="pt-4" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 }}>
-                <p className="text-sm text-gray-500 mb-3">Follow us</p>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-400 mb-3">Follow us</p>
                 <div className="flex gap-3">
                   {[
-                    { label: 'LinkedIn', href: settings?.linkedin || '#', color: '#0A66C2' },
-                    { label: 'Instagram', href: settings?.instagram || '#', color: '#E4405F' },
-                    { label: 'Twitter', href: settings?.twitter || '#', color: '#1DA1F2' },
+                    { label: 'LinkedIn', href: settings?.linkedin || '#' },
+                    { label: 'Instagram', href: settings?.instagram || '#' },
+                    { label: 'Twitter', href: settings?.twitter || '#' },
                   ].map(s => (
-                    <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white/80 hover:text-white transition-colors" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>{s.label}</a>
+                    <Link001 key={s.label} href={s.href} className="text-sm font-bold text-gray-500 hover:text-sky-600 transition-colors">{s.label}</Link001>
                   ))}
                 </div>
               </motion.div>
             </div>
 
-            {/* Right — Form */}
-            <motion.div className="lg:col-span-3 p-7 sm:p-8 rounded-2xl" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.005))', border: '1px solid rgba(255,255,255,0.05)' }}
+            <motion.div className="lg:col-span-3 p-7 sm:p-9 rounded-2xl bg-white border border-sky-100 shadow-xl shadow-sky-100/30"
               initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
               {submitted ? (
                 <motion.div className="text-center py-16" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
-                  <HiCheckCircle className="w-14 h-14 text-emerald-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-white mb-2">Message Sent!</h3>
+                  <HiCheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-5" />
+                  <h3 className="text-2xl font-black text-gray-900 mb-2">MESSAGE SENT!</h3>
                   <p className="text-sm text-gray-500 mb-6">Thank you for reaching out. We'll get back to you within 24 hours.</p>
-                  <button onClick={() => setSubmitted(false)} className="text-sm text-electric-400 hover:text-electric-300 font-medium">Send Another Message</button>
+                  <button onClick={() => setSubmitted(false)} className="text-sm text-sky-600 hover:text-sky-700 font-bold uppercase tracking-wider">Send Another Message</button>
                 </motion.div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <h3 className="text-xl font-bold text-white mb-4">Send Us a Message</h3>
-                  {/* Honeypot — hidden from humans */}
+                  <h3 className="text-2xl font-black text-gray-900 mb-5">SEND A <span className="text-stroke-sky">MESSAGE.</span></h3>
                   <div className="absolute -left-[9999px]" aria-hidden="true" tabIndex={-1}>
                     <input type="text" name="website_url" value={honeypot} onChange={e => setHoneypot(e.target.value)} tabIndex={-1} autoComplete="off" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input type="text" placeholder="Full Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required maxLength={100} className={inputClass} style={inputStyle} />
-                    <input type="email" placeholder="Email Address *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required maxLength={254} className={inputClass} style={inputStyle} />
-                    <input type="tel" placeholder="Phone (optional)" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} maxLength={20} className={inputClass} style={inputStyle} />
-                    <select value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className={inputClass} style={inputStyle}>
+                    <input type="text" placeholder="Full Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required maxLength={100} className={inputClass} />
+                    <input type="email" placeholder="Email Address *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required maxLength={254} className={inputClass} />
+                    <input type="tel" placeholder="Phone (optional)" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} maxLength={20} className={inputClass} />
+                    <select value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className={inputClass}>
                       <option value="">Select Subject</option>
                       {subjects.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
-                  <textarea placeholder="Your Message *" rows={5} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} required maxLength={5000} className={`${inputClass} resize-none`} style={inputStyle} />
-                  {error && <p className="text-xs text-red-400">{error}</p>}
-                  <button type="submit" disabled={submitting} className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-white font-semibold text-sm disabled:opacity-50 transition-all hover:-translate-y-0.5"
-                    style={{ background: 'linear-gradient(135deg, #3b82f6, #7c3aed)', boxShadow: '0 8px 30px rgba(59,130,246,0.2)' }}>
-                    {submitting ? 'Sending...' : 'Send Message'}
+                  <textarea placeholder="Your Message *" rows={5} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} required maxLength={5000} className={`${inputClass} resize-none`} />
+                  {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
+                  <button type="submit" disabled={submitting} className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-10 py-4 rounded-full text-white font-bold text-sm uppercase tracking-wider disabled:opacity-50 transition-all bg-sky-500 hover:bg-sky-600 shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40">
+                    {submitting ? 'Sending...' : 'Send Message'} <HiArrowRight className="w-4 h-4" />
                   </button>
                 </form>
               )}
@@ -152,15 +145,14 @@ export default function Contact() {
         </div>
       </section>
 
-      {/* Google Maps */}
-      <section className="relative" style={{ background: '#050816' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-          <motion.div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.05)' }}
+      <section className="relative bg-white pb-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div className="rounded-2xl overflow-hidden border border-sky-100 shadow-lg"
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
             <iframe
               title="Hiideals Technologies Location"
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d60742.66392959038!2d77.4872508!3d17.9133991!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bcfa9ed5dbf1a6b%3A0x1006840a2e50a80!2sBidar%2C%20Karnataka!5e0!3m2!1sen!2sin!4v1700000000000"
-              width="100%" height="350" style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg) brightness(0.95) contrast(0.9)' }}
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1316.6970097393983!2d77.51459011897028!3d17.904978587614227!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bcec6dfefdc6995%3A0xff6da47ae7c68473!2sHi-Ideals%20Technologies%20Private%20Limited.!5e0!3m2!1sen!2sin!4v1784806007921!5m2!1sen!2sin"
+              width="100%" height="350" style={{ border: 0 }}
               allowFullScreen="" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
           </motion.div>
         </div>

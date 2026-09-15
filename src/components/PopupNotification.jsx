@@ -45,7 +45,7 @@ export default function PopupNotification() {
             description: activeCampaign.description || activeCampaign.message || 'Check out our latest campaign!',
             cta: activeCampaign.cta || 'View Campaign',
             url: `/campaigns/${activeCampaign.id}`,
-            color: '#3b82f6',
+            color: '#0ea5e9',
           })
           setVisible(true)
           localStorage.setItem(shownKey, 'true')
@@ -120,7 +120,7 @@ export default function PopupNotification() {
           onClick={handleClose}
         >
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
 
           {/* Modal */}
           <motion.div
@@ -128,17 +128,12 @@ export default function PopupNotification() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-sm rounded-2xl p-6 text-center"
-            style={{
-              background: 'linear-gradient(135deg, #0d1127, #0a0e1a)',
-              border: `1px solid ${popup.color}30`,
-              boxShadow: `0 20px 60px rgba(0,0,0,0.5), 0 0 40px ${popup.color}15`,
-            }}
+            className="relative w-full max-w-sm rounded-2xl p-6 text-center bg-white border border-gray-200 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={handleClose}
-              className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+              className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
               <HiX className="w-4 h-4" />
             </button>
@@ -150,8 +145,8 @@ export default function PopupNotification() {
               <popup.icon className="w-7 h-7" style={{ color: popup.color }} />
             </div>
 
-            <h3 className="text-lg font-bold text-white mb-2 px-4">{popup.title}</h3>
-            <p className="text-sm text-gray-400 mb-6 leading-relaxed px-2">
+            <h3 className="text-lg font-bold text-gray-900 mb-2 px-4">{popup.title}</h3>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed px-2">
               {popup.description.length > 150 ? popup.description.slice(0, 150) + '...' : popup.description}
             </p>
 
@@ -159,14 +154,14 @@ export default function PopupNotification() {
               <Link
                 to={popup.url}
                 onClick={handleClose}
-                className="w-full py-3 rounded-xl text-white font-semibold text-sm transition-all hover:-translate-y-0.5"
-                style={{ background: `linear-gradient(135deg, ${popup.color}, ${popup.color}cc)`, boxShadow: `0 8px 25px ${popup.color}30` }}
+                className="w-full py-3 rounded-xl text-white font-semibold text-sm transition-all"
+                style={{ background: popup.color }}
               >
                 {popup.cta}
               </Link>
               <button
                 onClick={handleClose}
-                className="text-xs text-gray-500 hover:text-gray-400 transition-colors py-1"
+                className="text-xs text-gray-400 hover:text-gray-500 transition-colors py-1"
               >
                 Maybe Later
               </button>

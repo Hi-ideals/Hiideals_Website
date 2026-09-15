@@ -113,7 +113,7 @@ export default function AdminTeam() {
             <FormInput label="Role" placeholder="e.g. CTO" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
           </div>
           <FormTextarea label="Bio" placeholder="Short bio..." value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
-          <ImageUpload label="Photo" value={form.photo} onChange={(photo) => setForm({ ...form, photo })} />
+          <ImageUpload label="Photo" hint="Recommended: 400×400px, square crop, JPG or PNG" value={form.photo} onChange={(photo) => setForm({ ...form, photo })} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormInput label="LinkedIn URL" placeholder="https://linkedin.com/in/..." value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} />
             <FormInput label="GitHub URL" placeholder="https://github.com/..." value={form.github} onChange={(e) => setForm({ ...form, github: e.target.value })} />

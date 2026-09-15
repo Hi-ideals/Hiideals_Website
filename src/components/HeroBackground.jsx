@@ -1,75 +1,58 @@
 import { motion } from 'framer-motion'
 import Hero3DScene from './Hero3DScene'
 
-function GridPattern() {
-  return (
-    <div className="absolute inset-0 overflow-hidden">
-      <div
-        className="absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)
-          `,
-          backgroundSize: '80px 80px',
-        }}
-      />
-      <div
-        className="absolute inset-0 opacity-[0.02]"
-        style={{
-          backgroundImage: `radial-gradient(circle, rgba(96,165,250,0.3) 1px, transparent 1px)`,
-          backgroundSize: '40px 40px',
-        }}
-      />
-    </div>
-  )
-}
-
-function RadialGlow() {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      <motion.div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full"
-        animate={{ scale: [1, 1.05, 1], opacity: [0.6, 0.8, 0.6] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        style={{
-          background: 'radial-gradient(ellipse at 40% 50%, rgba(59,130,246,0.12) 0%, rgba(139,92,246,0.06) 35%, transparent 65%)',
-        }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse at 70% 60%, rgba(6,182,212,0.06) 0%, transparent 50%)',
-        }}
-      />
-    </div>
-  )
-}
-
-function NoiseOverlay() {
-  return (
-    <div
-      className="absolute inset-0 opacity-[0.015] pointer-events-none mix-blend-overlay"
-      style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
-      }}
-    />
-  )
-}
-
 export default function HeroBackground() {
   return (
     <>
-      <div className="absolute inset-0 bg-[#050816]" />
-      <div
-        className="absolute inset-0"
+      {/* Main gradient — richer sky blue */}
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 20%, #e0f2fe 40%, #f0f9ff 60%, #bae6fd 80%, #e0f2fe 100%)' }} />
+
+      {/* Grid pattern */}
+      <div className="absolute inset-0 opacity-[0.06]"
         style={{
-          background: 'linear-gradient(135deg, #050816 0%, #0a0f2e 30%, #0d1033 50%, #080c20 100%)',
+          backgroundImage: 'linear-gradient(rgba(9,160,231,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(9,160,231,0.5) 1px, transparent 1px)',
+          backgroundSize: '60px 60px',
         }}
       />
-      <RadialGlow />
-      <GridPattern />
-      <NoiseOverlay />
+
+      {/* Animated gradient orbs */}
+      <motion.div className="absolute -top-20 -left-20 w-[500px] h-[500px] rounded-full blur-[120px]"
+        animate={{ scale: [1, 1.1, 1], x: [0, 30, 0], y: [0, 20, 0] }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ background: 'radial-gradient(circle, rgba(9,160,231,0.35), transparent 70%)' }} />
+
+      <motion.div className="absolute top-1/3 right-0 w-[400px] h-[400px] rounded-full blur-[100px]"
+        animate={{ scale: [1, 1.08, 1], x: [0, -20, 0] }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+        style={{ background: 'radial-gradient(circle, rgba(34,191,248,0.3), transparent 70%)' }} />
+
+      <motion.div className="absolute bottom-0 left-1/3 w-[350px] h-[350px] rounded-full blur-[90px]"
+        animate={{ scale: [1, 1.06, 1], y: [0, -15, 0] }}
+        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+        style={{ background: 'radial-gradient(circle, rgba(111,208,250,0.3), transparent 70%)' }} />
+
+      {/* Floating decorative shapes */}
+      <motion.div className="absolute top-[15%] left-[8%] w-3 h-3 rounded-full bg-sky-400/40"
+        animate={{ y: [-10, 10, -10], opacity: [0.3, 0.6, 0.3] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.div className="absolute top-[60%] left-[5%] w-2 h-2 rounded-full bg-sky-500/30"
+        animate={{ y: [10, -10, 10], opacity: [0.2, 0.5, 0.2] }}
+        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }} />
+      <motion.div className="absolute top-[25%] right-[12%] w-4 h-4 rounded-full bg-sky-300/30"
+        animate={{ y: [-15, 15, -15], x: [-5, 5, -5] }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.div className="absolute bottom-[20%] right-[8%] w-2.5 h-2.5 rounded-full bg-sky-400/25"
+        animate={{ y: [8, -8, 8] }}
+        transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }} />
+
+      {/* Floating rings */}
+      <motion.div className="absolute top-[40%] left-[15%] w-16 h-16 rounded-full border-2 border-sky-300/20"
+        animate={{ rotate: 360, scale: [1, 1.1, 1] }}
+        transition={{ rotate: { duration: 20, repeat: Infinity, ease: 'linear' }, scale: { duration: 6, repeat: Infinity, ease: 'easeInOut' } }} />
+      <motion.div className="absolute bottom-[30%] right-[20%] w-10 h-10 rounded-full border border-sky-400/15"
+        animate={{ rotate: -360 }}
+        transition={{ duration: 15, repeat: Infinity, ease: 'linear' }} />
+
       <Hero3DScene />
     </>
   )

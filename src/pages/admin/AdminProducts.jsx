@@ -12,7 +12,7 @@ import { HiPencil, HiTrash, HiExternalLink } from 'react-icons/hi'
 const statusOptions = ['Live', 'Beta', 'In Development', 'Archived']
 const categoryOptions = ['SaaS', 'Mobile App', 'Web App', 'Desktop', 'API', 'Plugin', 'Other']
 
-const emptyForm = { name: '', tagline: '', description: '', category: 'SaaS', status: 'Live', image: '', url: '', tech: [], active: true, order: 1 }
+const emptyForm = { name: '', tagline: '', description: '', category: 'SaaS', status: 'Live', image: '', url: '', tech: [], features: [], active: true, order: 1 }
 
 export default function AdminProducts() {
   const toast = useToast()
@@ -38,7 +38,7 @@ export default function AdminProducts() {
   const openNew = () => { setEditId(null); setForm(emptyForm); setModalOpen(true) }
   const openEdit = (item) => {
     setEditId(item.id)
-    setForm({ name: item.name || '', tagline: item.tagline || '', description: item.description || '', category: item.category || 'SaaS', status: item.status || 'Live', image: item.image || '', url: item.url || '', tech: item.tech || [], active: item.active !== false, order: item.order || 1 })
+    setForm({ name: item.name || '', tagline: item.tagline || '', description: item.description || '', category: item.category || 'SaaS', status: item.status || 'Live', image: item.image || '', url: item.url || '', tech: item.tech || [], features: item.features || [], active: item.active !== false, order: item.order || 1 })
     setModalOpen(true)
   }
 
@@ -139,9 +139,10 @@ export default function AdminProducts() {
           <FormSelect label="Status" options={statusOptions} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} />
           <div className="md:col-span-2"><FormTextarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
           <div className="md:col-span-2"><FormTagInput label="Tech Stack" tags={form.tech} onChange={(tech) => setForm({ ...form, tech })} placeholder="e.g. React" /></div>
+          <div className="md:col-span-2"><FormTagInput label="Features" tags={form.features} onChange={(features) => setForm({ ...form, features })} placeholder="e.g. Multi-tenant, GST Billing" /></div>
           <FormInput label="URL" placeholder="https://..." value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
           <FormInput label="Order" type="number" value={form.order} onChange={(e) => setForm({ ...form, order: Number(e.target.value) })} />
-          <div className="md:col-span-2"><ImageUpload label="Screenshot" value={form.image} onChange={(image) => setForm({ ...form, image })} /></div>
+          <div className="md:col-span-2"><ImageUpload label="Screenshot" hint="Recommended: 1200×630px, PNG or JPG" value={form.image} onChange={(image) => setForm({ ...form, image })} /></div>
           <div className="md:col-span-2"><FormToggle label="Active" checked={form.active} onChange={(active) => setForm({ ...form, active })} /></div>
         </div>
         <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-white/[0.06]">

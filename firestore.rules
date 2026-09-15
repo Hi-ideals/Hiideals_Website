@@ -28,6 +28,11 @@ service cloud.firestore {
     }
 
     // Public content collections — anyone can read, admin can write
+    match /client_logos/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /products/{docId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -49,11 +54,6 @@ service cloud.firestore {
     }
 
     match /blog_posts/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /case_studies/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }
@@ -87,17 +87,20 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
-    // Newsletter subscribers — write-only for public (no public read to protect emails)
-    match /newsletter_subscribers/{docId} {
+    // Newsletter subscribers — doc ID = email, public can get (by exact ID) & create, no list
+    match /newsletter_subscribers/{emailId} {
+      // Public can check if their own email exists (get by exact doc ID)
+      allow get: if true;
+      // Public can create with validated data (doc ID must match email field)
       allow create: if request.resource.data.keys().hasAll(['email', 'active', 'createdAt'])
         && request.resource.data.email is string
         && request.resource.data.email.size() <= 254
+        && request.resource.data.email == emailId
         && request.resource.data.email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$')
         && request.resource.data.keys().size() <= 4;
-      // Allow read only for duplicate check queries filtered by email
-      allow read: if request.auth == null
-        && resource.data.email == request.resource.data.email;
-      allow read, update, delete: if isAdmin();
+      // No public list — prevents email enumeration
+      allow list, update, delete: if isAdmin();
+      allow read: if isAdmin();
     }
 
     // Newsletters sent log — admin only

@@ -1,17 +1,13 @@
 import { useState, useRef } from 'react'
 import { HiPhotograph, HiX } from 'react-icons/hi'
 
-const MAX_SIZE = 5 * 1024 * 1024 // 5MB raw file limit
-const MAX_WIDTH = 1200 // max image dimension
+const MAX_SIZE = 50 * 1024 * 1024 // 50MB raw file limit (compressed before storage)
+const DEFAULT_MAX_WIDTH = 1200 // max image dimension
 const QUALITY = 0.7 // JPEG compression quality
 
-/**
- * Compresses an image file to a smaller base64 data URL.
- * Resizes to max 1200px wide and compresses to JPEG ~70% quality.
- * This keeps Firestore doc size reasonable (typically 50-200KB base64).
- */
-function compressImage(file) {
+function compressImage(file, maxWidth = DEFAULT_MAX_WIDTH) {
   return new Promise((resolve, reject) => {
+    const isPng = file.type === 'image/png'
     const reader = new FileReader()
     reader.onerror = reject
     reader.onload = () => {
@@ -21,10 +17,9 @@ function compressImage(file) {
         const canvas = document.createElement('canvas')
         let { width, height } = img
 
-        // Scale down if too large
-        if (width > MAX_WIDTH) {
-          height = Math.round((height * MAX_WIDTH) / width)
-          width = MAX_WIDTH
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width)
+          width = maxWidth
         }
 
         canvas.width = width
@@ -32,8 +27,9 @@ function compressImage(file) {
         const ctx = canvas.getContext('2d')
         ctx.drawImage(img, 0, 0, width, height)
 
-        // Compress to JPEG
-        const compressed = canvas.toDataURL('image/jpeg', QUALITY)
+        const compressed = isPng
+          ? canvas.toDataURL('image/png')
+          : canvas.toDataURL('image/jpeg', QUALITY)
         resolve(compressed)
       }
       img.src = reader.result
@@ -42,7 +38,7 @@ function compressImage(file) {
   })
 }
 
-export default function ImageUpload({ label, value, onChange, onFile, accept = 'image/*', maxSize = MAX_SIZE }) {
+export default function ImageUpload({ label, value, onChange, onFile, accept = 'image/*', maxSize = MAX_SIZE, maxWidth = DEFAULT_MAX_WIDTH, hint }) {
   const [preview, setPreview] = useState(value || '')
   const [error, setError] = useState('')
   const [compressing, setCompressing] = useState(false)
@@ -61,7 +57,7 @@ export default function ImageUpload({ label, value, onChange, onFile, accept = '
 
     try {
       // Compress and convert to base64
-      const compressed = await compressImage(file)
+      const compressed = await compressImage(file, maxWidth)
       setPreview(compressed)
       onChange?.(compressed)
       // Still call onFile for backward compat, but it's no longer needed
@@ -81,7 +77,8 @@ export default function ImageUpload({ label, value, onChange, onFile, accept = '
 
   return (
     <div>
-      {label && <label className="block text-sm font-medium text-gray-300 mb-1.5">{label}</label>}
+      {label && <label className="block text-sm font-medium text-gray-300 mb-1">{label}</label>}
+      {hint && <p className="text-[11px] text-gray-500 mb-1.5">{hint}</p>}
       {preview ? (
         <div className="relative w-full h-40 rounded-xl overflow-hidden border border-white/[0.08] group">
           <img src={preview} alt="Preview" className="w-full h-full object-cover" />

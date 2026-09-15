@@ -7,13 +7,13 @@ export default function NotFound() {
   return (
     <PageTransition>
       <Helmet><title>404 — Hiideals Technologies</title></Helmet>
-      <section className="min-h-[80vh] flex items-center justify-center overflow-hidden" style={{ background: '#050816' }}>
+      <section className="min-h-[80vh] flex items-center justify-center overflow-hidden section-sky-alt">
         <div className="text-center px-4">
           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}>
-            <h1 className="text-8xl lg:text-9xl font-extrabold mb-4 tracking-tight" style={{ background: 'linear-gradient(135deg, #60a5fa, #a78bfa, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>404</h1>
-            <h2 className="text-2xl lg:text-3xl font-bold text-white mb-4">Page Not Found</h2>
+            <h1 className="text-8xl lg:text-[12rem] font-black mb-4 tracking-tight leading-none text-stroke-sky">404</h1>
+            <h2 className="text-2xl lg:text-4xl font-black text-gray-900 mb-4 tracking-tight">PAGE NOT FOUND</h2>
             <p className="text-gray-500 mb-8 max-w-md mx-auto">The page you&apos;re looking for doesn&apos;t exist or has been moved.</p>
-            <Link to="/" className="inline-flex px-8 py-3.5 rounded-xl text-white font-semibold transition-all hover:-translate-y-0.5" style={{ background: 'linear-gradient(135deg, #3b82f6, #7c3aed)', boxShadow: '0 8px 30px rgba(59,130,246,0.2)' }}>Back to Home</Link>
+            <Link to="/" className="inline-flex items-center gap-2 px-10 py-4 rounded-full text-white font-bold uppercase tracking-wider transition-all bg-sky-500 hover:bg-sky-600 shadow-lg shadow-sky-500/25">Back to Home</Link>
           </motion.div>
         </div>
       </section>

@@ -163,7 +163,7 @@ export default function AdminBlog() {
           </div>
 
           <FormTagInput label="Tags" tags={form.tags} onChange={(tags) => setForm({ ...form, tags })} placeholder="Add tag" />
-          <ImageUpload label="Cover Image" value={form.image} onChange={(image) => setForm({ ...form, image })} />
+          <ImageUpload label="Cover Image" hint="Recommended: 1200×630px, JPG or PNG" value={form.image} onChange={(image) => setForm({ ...form, image })} />
           <div className="flex gap-6">
             <FormToggle label="Published" checked={form.published} onChange={(published) => setForm({ ...form, published })} />
             <FormToggle label="Active" checked={form.active} onChange={(active) => setForm({ ...form, active })} />

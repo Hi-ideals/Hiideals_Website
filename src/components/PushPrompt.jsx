@@ -100,47 +100,25 @@ export default function PushPrompt() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="fixed bottom-20 left-4 sm:left-6 z-50 w-[calc(100%-2rem)] sm:w-80 rounded-2xl p-4"
-          style={{
-            background: 'linear-gradient(135deg, #0d1127, #0a0e1a)',
-            border: '1px solid rgba(59,130,246,0.15)',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.4), 0 0 30px rgba(59,130,246,0.08)',
-          }}
+          className="fixed bottom-20 left-4 sm:left-6 z-50 w-[calc(100%-2rem)] sm:w-80 rounded-2xl p-4 bg-white border border-gray-200 shadow-xl"
         >
           <button
             onClick={handleLater}
-            className="absolute top-2.5 right-2.5 p-1 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+            className="absolute top-2.5 right-2.5 p-1 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
           >
             <HiX className="w-3.5 h-3.5" />
           </button>
 
           <div className="flex items-start gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.15)' }}
-            >
-              <HiBell className="w-5 h-5 text-electric-400" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-sky-50 border border-sky-100">
+              <HiBell className="w-5 h-5 text-sky-500" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white mb-1">Stay Updated</p>
-              <p className="text-xs text-gray-400 leading-relaxed mb-3">
-                Get notified about new products, internships, and opportunities.
-              </p>
+              <p className="text-sm font-semibold text-gray-900 mb-1">Stay Updated</p>
+              <p className="text-xs text-gray-500 leading-relaxed mb-3">Get notified about new products, internships, and opportunities.</p>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleAllow}
-                  className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:-translate-y-0.5"
-                  style={{ background: 'linear-gradient(135deg, #3b82f6, #7c3aed)' }}
-                >
-                  Allow
-                </button>
-                <button
-                  onClick={handleLater}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-300 transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.04)' }}
-                >
-                  Maybe Later
-                </button>
+                <button onClick={handleAllow} className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-sky-500 hover:bg-sky-600 transition-colors">Allow</button>
+                <button onClick={handleLater} className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-600 bg-gray-50 transition-colors">Maybe Later</button>
               </div>
             </div>
           </div>

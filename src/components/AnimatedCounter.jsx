@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-export default function AnimatedCounter({ value, suffix = '', duration = 2000 }) {
+export default function AnimatedCounter({ value, suffix = '', duration = 5000 }) {
   const [count, setCount] = useState(0)
   const ref = useRef(null)
   const hasAnimated = useRef(false)

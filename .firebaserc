@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "hiideals-website"
-  }
+  },
+  "targets": {
+    "hiideals-website": {
+      "hosting": {
+        "hiideals-website": [
+          "hiideals-website"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
