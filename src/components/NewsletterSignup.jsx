@@ -58,7 +58,7 @@ export default function NewsletterSignup() {
 
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 mb-3">Stay Updated</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 mb-3">Stay Updated100</h3>
       <p className="text-sm text-gray-400 mb-4">Get the latest news, updates, and opportunities delivered to your inbox.</p>
 
       <AnimatePresence mode="wait">
